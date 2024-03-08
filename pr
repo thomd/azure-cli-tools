@@ -15,8 +15,7 @@ help_envs() {
 [ -z "$AZDO_REVIEWER" ] && help_envs "AZDO_REVIEWER"
 
 AZDO_STATUS=${1:-"active"}
-echo -e "\n $(tput setaf 2)$AZDO_STATUS$(tput sgr0) pull-requests of project $(tput setaf 2)$AZDO_PROJECT$(tput sgr0):"
-echo
+echo -e >&2 "\n $(tput setaf 2)${AZDO_STATUS^}$(tput sgr0) Pull-Requests of Project $(tput setaf 2)$AZDO_PROJECT$(tput sgr0):\n"
 
 az repos pr list \
   --organization "https://dev.azure.com/${AZDO_ORGANIZATION}" \
