@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+help_envs() {
+  echo -e >&2 "\n environment variable $(tput setaf 1)${1}$(tput sgr0) is not set."
+  echo -e "\n export variables based on this URL:\n $(tput setaf 0)https://dev.azure.com/$(tput setaf 8)<organization>$(tput setaf 0)/$(tput setaf 8)<project>$(tput setaf 0)/_git/<$(tput setaf 8)repository>$(tput sgr0)"
+  echo -e "\n    $(tput setaf 0)export AZDO_ORGANIZATION=\"$(tput setaf 8)<organization>$(tput setaf 0)\"$(tput sgr0)"
+  echo -e "    $(tput setaf 0)export AZDO_PROJECT=\"$(tput setaf 8)<project>$(tput setaf 0)\"$(tput sgr0)"
+  echo -e "    $(tput setaf 0)export AZDO_REPOSITORY=\"$(tput setaf 8)<repository>$(tput setaf 0)\"$(tput sgr0)"
+  echo -e "    $(tput setaf 0)export AZDO_REVIEWER=\"$(tput setaf 8)<your-email>$(tput setaf 0)\"$(tput sgr0)"
+  exit 1
+}
+[ -z "$AZDO_ORGANIZATION" ] && help_envs "AZDO_ORGANIZATION"
+[ -z "$AZDO_PROJECT" ] && help_envs "AZDO_PROJECT"
+[ -z "$AZDO_REPOSITORY" ] && help_envs "AZDO_REPOSITORY"
+[ -z "$AZDO_REVIEWER" ] && help_envs "AZDO_REVIEWER"
+
+AZDO_STATUS=${1:-"active"}
+echo -e "\n $(tput setaf 2)$AZDO_STATUS$(tput sgr0) pull-requests of project $(tput setaf 2)$AZDO_PROJECT$(tput sgr0):"
+echo
+
+az repos pr list \
+  --organization "https://dev.azure.com/${AZDO_ORGANIZATION}" \
+  --project "${AZDO_PROJECT}" \
+  --repository "${AZDO_REPOSITORY}" \
+  --status "${AZDO_STATUS}" \
+  --query "[].{Title: title, Repository: repository.name, PullRequestId: pullRequestId, Completion: completionQueueTime}" \
+  --output 'json' |
+  jq --raw-output --arg organization "${AZDO_ORGANIZATION}" --arg project "${AZDO_PROJECT}" '.[] | "\(.Title)\thttps://dev.azure.com/\($organization | @uri)\/\($project | @uri)\/\(.Repository)/_git/\(.Repository)/pullrequest/\(.PullRequestId)"' |
+  column -t -s $'\t'
+
+#az repos pr list \
+  #--organization "https://dev.azure.com/${AZDO_ORGANIZATION}" \
+  #--project "${AZDO_PROJECT}" \
+  #--reviewer "${AZDO_REVIEWER}" \
+  #--status "${status}" \
+  #--query "[].{Title: title, Repository: repository.name, PullRequestId: pullRequestId}" \
+  #--output 'json' |
+  #jq --raw-output --arg organization "${AZDO_ORGANIZATION}" --arg project "${AZDO_PROJECT}" '.[] | "PR \(.PullRequestId)\t[\(.Repository)]\t\(.Title)\thttps://dev.azure.com/\($organization | @uri)\/\($project | @uri)\/\(.Repository)/_git/\(.Repository)/pullrequest/\(.PullRequestId)"' |
+  #column -t -s $'\t'
