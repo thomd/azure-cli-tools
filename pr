@@ -36,7 +36,7 @@ help_envs() {
 [ -z "$AZDO_REPOSITORY" ] && help_envs "AZDO_REPOSITORY"
 [ -z "$AZDO_REVIEWER" ] && help_envs "AZDO_REVIEWER"
 
-[ $1 == "-h" ] && show_help
+[[ $1 == "-h" ]] && show_help
 AZDO_STATUS=${1:-"active"}
 echo -e >&2 "\n $(tput setaf 2)${AZDO_STATUS^}$(tput sgr0) Pull-Requests of Project $(tput setaf 2)$AZDO_PROJECT$(tput sgr0):\n"
 
