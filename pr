@@ -1,5 +1,27 @@
 #!/usr/bin/env bash
 
+#
+# Show Pull-Requests of an Azure Project
+#
+# USAGE
+#
+#     pr                                       # list active pull requests
+#     pr TYPE                                  # list pull requests of TYPE: active, all, completed, abandoned [default: active]
+#
+# EXAMPLES
+#
+#     pr completed | grep 1234
+#     pr completed | colgrep 1234 | less
+#
+
+show_help() {
+  awk '/^[^ #]/{c=1}c==0{print $0}' $0 | sed -n '/^#/p' | sed 1d | sed 's/^#/ /g' \
+    | perl -pe "s/ #(.*)$/$(tput setaf 0)\1$(tput sgr 0)/" \
+    | perl -pe "s/(USAGE|EXAMPLES|COMMANDS)/$(tput setaf 0)\1$(tput sgr 0)/" \
+    | perl -pe "s/\`(.+)\`/$(tput sgr 0 1)\1$(tput sgr 0)/"
+  exit 1
+}
+
 help_envs() {
   echo -e >&2 "\n environment variable $(tput setaf 1)${1}$(tput sgr0) is not set."
   echo -e "\n export variables based on this URL:\n $(tput setaf 0)https://dev.azure.com/$(tput setaf 8)<organization>$(tput setaf 0)/$(tput setaf 8)<project>$(tput setaf 0)/_git/<$(tput setaf 8)repository>$(tput sgr0)"
@@ -14,25 +36,15 @@ help_envs() {
 [ -z "$AZDO_REPOSITORY" ] && help_envs "AZDO_REPOSITORY"
 [ -z "$AZDO_REVIEWER" ] && help_envs "AZDO_REVIEWER"
 
+[ $1 == "-h" ] && show_help
 AZDO_STATUS=${1:-"active"}
 echo -e >&2 "\n $(tput setaf 2)${AZDO_STATUS^}$(tput sgr0) Pull-Requests of Project $(tput setaf 2)$AZDO_PROJECT$(tput sgr0):\n"
 
-az repos pr list \
-  --organization "https://dev.azure.com/${AZDO_ORGANIZATION}" \
-  --project "${AZDO_PROJECT}" \
-  --repository "${AZDO_REPOSITORY}" \
-  --status "${AZDO_STATUS}" \
-  --query "[].{Title: title, Repository: repository.name, PullRequestId: pullRequestId, Completion: completionQueueTime}" \
-  --output 'json' |
-  jq --raw-output --arg organization "${AZDO_ORGANIZATION}" --arg project "${AZDO_PROJECT}" '.[] | "\(.Title)\thttps://dev.azure.com/\($organization | @uri)\/\($project | @uri)\/\(.Repository)/_git/\(.Repository)/pullrequest/\(.PullRequestId)"' |
+awk -F'\t' \
+  -v org="$AZDO_ORGANIZATION" \
+  -v proj="${AZDO_PROJECT/ /%20}" \
+  -v repo="$AZDO_REPOSITORY" \
+  '{printf "%s\t\x1b[38;5;240mhttps://dev.azure.com/%s/%s/_git/%s/pullrequest/%s\x1b[0m\t%s\n", $1, org, proj, repo, $2, substr($3, 0, 10)}' < \
+  <(az repos pr list --org "https://dev.azure.com/${AZDO_ORGANIZATION}" -p "${AZDO_PROJECT}" -r "${AZDO_REPOSITORY}" --status "${AZDO_STATUS}" \
+                     --query "[].{Title: title, PullRequestId: pullRequestId, Completion: completionQueueTime}" -o 'tsv') |
   column -t -s $'\t'
-
-#az repos pr list \
-  #--organization "https://dev.azure.com/${AZDO_ORGANIZATION}" \
-  #--project "${AZDO_PROJECT}" \
-  #--reviewer "${AZDO_REVIEWER}" \
-  #--status "${status}" \
-  #--query "[].{Title: title, Repository: repository.name, PullRequestId: pullRequestId}" \
-  #--output 'json' |
-  #jq --raw-output --arg organization "${AZDO_ORGANIZATION}" --arg project "${AZDO_PROJECT}" '.[] | "PR \(.PullRequestId)\t[\(.Repository)]\t\(.Title)\thttps://dev.azure.com/\($organization | @uri)\/\($project | @uri)\/\(.Repository)/_git/\(.Repository)/pullrequest/\(.PullRequestId)"' |
-  #column -t -s $'\t'
