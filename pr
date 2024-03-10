@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 
 #
-# Show Pull-Requests of an Azure Project
+# List Pull-Requests of an Azure Project
 #
 # USAGE
 #
-#     pr                                       # list active pull requests
-#     pr TYPE                                  # list pull requests of TYPE: active, all, completed, abandoned [default: active]
+#     pr                                       # list completed pull requests
+#     pr TYPE                                  # list pull requests of TYPE: active, all, completed, abandoned [default: completed]
+#     pr -v                                    # list pull requests and open in VisiData
 #
 # EXAMPLES
 #
-#     pr completed | grep 1234
-#     pr completed | colgrep 1234 | less
+#     pr | grep 1234
+#     pr | colgrep 1234 | less
+#     pr all -v
 #
 
 show_help() {
@@ -36,15 +38,39 @@ help_envs() {
 [ -z "$AZDO_REPOSITORY" ] && help_envs "AZDO_REPOSITORY"
 [ -z "$AZDO_REVIEWER" ] && help_envs "AZDO_REVIEWER"
 
-[[ $1 == "-h" ]] && show_help
-AZDO_STATUS=${1:-"active"}
+csv=false
+AZDO_STATUS="completed"
+
+while [ $# -gt 0 ]; do
+  case $1 in
+    -v)
+      csv=true
+      ;;
+    -h|--help)
+      show_help
+      ;;
+    *)
+      AZDO_STATUS=$1
+      ;;
+  esac
+  shift
+done
+
 echo -e >&2 "\n $(tput setaf 2)${AZDO_STATUS^}$(tput sgr0) Pull-Requests of Project $(tput setaf 2)$AZDO_PROJECT$(tput sgr0):\n"
+
+if [[ $csv == true ]]; then
+  echo "\"Title\",\"URL\",\"Completion Date\""
+  format="\"%s\",\"https://dev.azure.com/%s/%s/_git/%s/pullrequest/%s\",\"%s\"\n"
+else
+  format="%s\t\033[38;5;240mhttps://dev.azure.com/%s/%s/_git/%s/pullrequest/%s\033[0m\t%s\n"
+fi
 
 awk -F'\t' \
   -v org="$AZDO_ORGANIZATION" \
   -v proj="${AZDO_PROJECT/ /%20}" \
   -v repo="$AZDO_REPOSITORY" \
-  '{printf "%s\t\x1b[38;5;240mhttps://dev.azure.com/%s/%s/_git/%s/pullrequest/%s\x1b[0m\t%s\n", $1, org, proj, repo, $2, substr($3, 0, 10)}' < \
+  -v format="$format" \
+  '{printf format, $1, org, proj, repo, $2, substr($3, 0, 10)}' < \
   <(az repos pr list --org "https://dev.azure.com/${AZDO_ORGANIZATION}" -p "${AZDO_PROJECT}" -r "${AZDO_REPOSITORY}" --status "${AZDO_STATUS}" \
                      --query "[].{Title: title, PullRequestId: pullRequestId, Completion: completionQueueTime}" -o 'tsv') |
   column -t -s $'\t'
