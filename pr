@@ -40,6 +40,7 @@ help_envs() {
 
 csv=false
 AZDO_STATUS="completed"
+AZDO_URL="https://dev.azure.com/${AZDO_ORGANIZATION}/${AZDO_PROJECT/ /%20}/_git/${AZDO_REPOSITORY}/pullrequest"
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -59,20 +60,19 @@ done
 echo -e >&2 "\n $(tput setaf 2)${AZDO_STATUS^}$(tput sgr0) Pull-Requests of Project $(tput setaf 2)$AZDO_PROJECT$(tput sgr0):\n"
 
 if [[ $csv == true ]]; then
-  awk -F'\t' \
-    -v org="$AZDO_ORGANIZATION" \
-    -v proj="${AZDO_PROJECT/ /%20}" \
-    -v repo="$AZDO_REPOSITORY" \
-    'BEGIN{printf "\"Title\",\"URL\",\"Completion Date\"\n"}{printf "\"%s\",\"https://dev.azure.com/%s/%s/_git/%s/pullrequest/%s\",\"%s\"\n", $1, org, proj, repo, $2, substr($3, 0, 10)}' < \
-    <(az repos pr list --org "https://dev.azure.com/${AZDO_ORGANIZATION}" -p "${AZDO_PROJECT}" -r "${AZDO_REPOSITORY}" --status "${AZDO_STATUS}" \
-                       --query "[].{Title: title, PullRequestId: pullRequestId, Completion: completionQueueTime}" -o 'tsv') | vd
+  awk -F'\t' -v url="$AZDO_URL" 'BEGIN{printf "\"Title\",\"URL\",\"Completion Date\"\n"}{printf "\"%s\",\"%s/%s\",\"%s\"\n", $1, url, $2, substr($3, 0, 10)}' \
+    < <(az repos pr list --org "https://dev.azure.com/${AZDO_ORGANIZATION}" \
+                         -p "${AZDO_PROJECT}" \
+                         -r "${AZDO_REPOSITORY}" \
+                         --status "${AZDO_STATUS}" \
+                         --query "[].{Title: title, PullRequestId: pullRequestId, Completion: completionQueueTime}" -o 'tsv') \
+  | vd
 else
-  awk -F'\t' \
-    -v org="$AZDO_ORGANIZATION" \
-    -v proj="${AZDO_PROJECT/ /%20}" \
-    -v repo="$AZDO_REPOSITORY" \
-    '{printf "%s\t\033[38;5;240mhttps://dev.azure.com/%s/%s/_git/%s/pullrequest/%s\033[0m\t%s\n", $1, org, proj, repo, $2, substr($3, 0, 10)}' < \
-    <(az repos pr list --org "https://dev.azure.com/${AZDO_ORGANIZATION}" -p "${AZDO_PROJECT}" -r "${AZDO_REPOSITORY}" --status "${AZDO_STATUS}" \
-                       --query "[].{Title: title, PullRequestId: pullRequestId, Completion: completionQueueTime}" -o 'tsv') |
-    column -t -s $'\t'
+  awk -F'\t' -v url="$AZDO_URL" '{printf "%s\t\033[38;5;240m%s/%s\033[0m\t%s\n", $1, url, $2, substr($3, 0, 10)}' \
+    < <(az repos pr list --org "https://dev.azure.com/${AZDO_ORGANIZATION}" \
+                         -p "${AZDO_PROJECT}" \
+                         -r "${AZDO_REPOSITORY}" \
+                         --status "${AZDO_STATUS}" \
+                         --query "[].{Title: title, PullRequestId: pullRequestId, Completion: completionQueueTime}" -o 'tsv') \
+  | column -t -s $'\t'
 fi
