@@ -26,7 +26,7 @@ show_help() {
 
 help_envs() {
   echo -e >&2 "\n environment variable $(tput setaf 1)${1}$(tput sgr0) is not set."
-  echo -e "\n export variables based on this URL:\n $(tput setaf 0)https://dev.azure.com/$(tput setaf 8)<organization>$(tput setaf 0)/$(tput setaf 8)<project>$(tput setaf 0)/_git/<$(tput setaf 8)repository>$(tput sgr0)"
+  echo -e "\n export variables based on this URL:\n $(tput setaf 0)https://dev.azure.com/$(tput setaf 8)<organization>$(tput setaf 0)/$(tput setaf 8)<project>$(tput setaf 0)/_git/$(tput setaf 8)<repository>$(tput sgr0)"
   echo -e "\n    $(tput setaf 0)export AZDO_ORGANIZATION=\"$(tput setaf 8)<organization>$(tput setaf 0)\"$(tput sgr0)"
   echo -e "    $(tput setaf 0)export AZDO_PROJECT=\"$(tput setaf 8)<project>$(tput setaf 0)\"$(tput sgr0)"
   echo -e "    $(tput setaf 0)export AZDO_REPOSITORY=\"$(tput setaf 8)<repository>$(tput setaf 0)\"$(tput sgr0)"
