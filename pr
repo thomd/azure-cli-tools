@@ -13,7 +13,6 @@
 #
 #     pr | grep 1234
 #     pr | colgrep 1234 | less
-#     pr all -v
 #
 
 show_help() {
