@@ -39,8 +39,8 @@ help_envs() {
 [ -z "$AZDO_REVIEWER" ] && help_envs "AZDO_REVIEWER"
 
 csv=false
-AZDO_STATUS="completed"
-AZDO_URL="https://dev.azure.com/${AZDO_ORGANIZATION}/${AZDO_PROJECT/ /%20}/_git/${AZDO_REPOSITORY}/pullrequest"
+AZDO_STATUS="all"
+AZDO_URL="dev.azure.com/${AZDO_ORGANIZATION}/${AZDO_PROJECT/ /%20}/_git/${AZDO_REPOSITORY}/pullrequest"
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -68,11 +68,14 @@ if [[ $csv == true ]]; then
                          --query "[].{Title: title, PullRequestId: pullRequestId, Completion: completionQueueTime}" -o 'tsv') \
   | vd
 else
-  awk -F'\t' -v url="$AZDO_URL" '{printf "%s\t\033[38;5;240m%s/%s\033[0m\t%s\n", $1, url, $2, substr($3, 0, 10)}' \
+  [[ $DEBUG == "1" ]] && echo -e "   $(tput setaf 0)az repos pr list --org \""https://dev.azure.com/${AZDO_ORGANIZATION}\"" -p \""${AZDO_PROJECT}\"" -r \""${AZDO_REPOSITORY}\"" --status \""${AZDO_STATUS}\"" --query \""[].{Title: title, PullRequestId: pullRequestId, Completion: completionQueueTime}\"" -o 'tsv'$(tput sgr0)\n"
+  #echo "Start       End         URL                                                                           Title"
+  #printf '%.0s-' $(seq $(tput cols))
+  awk -F'\t' -v url="$AZDO_URL" '{sub(/None/, "          ", $4); printf "%s\t%s\t\033[38;5;240m%s/%s\033[0m\t%s\n", substr($3, 0, 10), substr($4, 0, 10), url, $2, $1}' \
     < <(az repos pr list --org "https://dev.azure.com/${AZDO_ORGANIZATION}" \
                          -p "${AZDO_PROJECT}" \
                          -r "${AZDO_REPOSITORY}" \
                          --status "${AZDO_STATUS}" \
-                         --query "[].{Title: title, PullRequestId: pullRequestId, Completion: completionQueueTime}" -o 'tsv') \
+                         --query "reverse(sort_by([], &creationDate))[*].{Title: title, PullRequestId: pullRequestId, Creation: creationDate, Completion: completionQueueTime}" -o 'tsv') \
   | column -t -s $'\t'
 fi
