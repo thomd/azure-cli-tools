@@ -6,7 +6,7 @@
 # USAGE
 #
 #     pr                                       # list completed pull requests
-#     pr TYPE                                  # list pull requests of TYPE: active, all, completed, abandoned [default: completed]
+#     pr TYPE                                  # list pull requests of TYPE: active, all, completed, abandoned [default: all]
 #     pr -v                                    # list pull requests and open in VisiData
 #
 # EXAMPLES
