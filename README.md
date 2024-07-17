@@ -1,10 +1,11 @@
 # Azure CLI Tools
 
-A collection of bash scripts for my daily work with Azure. 
+A collection of bash scripts (curently it is only one) for my daily work with Azure. 
 
 The scripts are basically wrappers around the `az` and `azd` cli tools from Microsoft.
 
-**Disclaimer**: These scripts were created to fit my personal needs. They might not fit your needs, they might not work on your machine, they might not work with your project setup.
+> [!CAUTION]
+> These scripts were created to fit my personal needs. They might not fit your needs, they might not work on your machine, they might not work with your project setup.
 
 ## Install
 
