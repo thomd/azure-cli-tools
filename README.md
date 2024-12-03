@@ -16,3 +16,13 @@ Set symlinks to `~/bin/` folder:
 Alternatively symlink to custom folders like this example:
 
     make BINDIR=/usr/local/bin/ COMPLETIONSDIR=/etc/bash_completions.d
+
+## Usage
+
+Authenticate via PAT
+
+    az devops login
+
+List Pull-Requests of an Azure Project
+
+    pr --help
