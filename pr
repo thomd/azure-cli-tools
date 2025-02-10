@@ -8,11 +8,13 @@
 #     pr                                       # list completed pull requests
 #     pr TYPE                                  # list pull requests of TYPE: active, all, completed, abandoned [default: all]
 #     pr -v                                    # list pull requests and open in VisiData
+#     pr -s COUNT                              # set number of pull requests returned [default: 100]
 #
 # EXAMPLES
 #
 #     pr | grep 1234
-#     pr | colgrep 1234 | less
+#     pr | rg 1234
+#     pr completed | rg -f <(cat pattern-list.txt)
 #
 
 show_help() {
@@ -37,14 +39,19 @@ help_envs() {
 [ -z "$AZDO_REPOSITORY" ] && help_envs "AZDO_REPOSITORY"
 [ -z "$AZDO_REVIEWER" ] && help_envs "AZDO_REVIEWER"
 
-csv=false
+visidata=false
+size=100
 AZDO_STATUS="all"
 AZDO_URL="dev.azure.com/${AZDO_ORGANIZATION}/${AZDO_PROJECT/ /%20}/_git/${AZDO_REPOSITORY}/pullrequest"
 
 while [ $# -gt 0 ]; do
   case $1 in
     -v)
-      csv=true
+      visidata=true
+      ;;
+    -s)
+      shift
+      size=$1
       ;;
     -h|--help)
       show_help
@@ -58,23 +65,43 @@ done
 
 echo -e >&2 "\n $(tput setaf 2)${AZDO_STATUS^}$(tput sgr0) Pull-Requests of Project $(tput setaf 2)$AZDO_PROJECT$(tput sgr0):\n"
 
-if [[ $csv == true ]]; then
+if [[ $visidata == true ]]; then
   awk -F'\t' -v url="$AZDO_URL" 'BEGIN{printf "\"Title\",\"URL\",\"Completion Date\"\n"}{printf "\"%s\",\"%s/%s\",\"%s\"\n", $1, url, $2, substr($3, 0, 10)}' \
     < <(az repos pr list --org "https://dev.azure.com/${AZDO_ORGANIZATION}" \
                          -p "${AZDO_PROJECT}" \
                          -r "${AZDO_REPOSITORY}" \
                          --status "${AZDO_STATUS}" \
-                         --query "[].{Title: title, PullRequestId: pullRequestId, Completion: completionQueueTime}" -o 'tsv') \
+                         --top "$size" \
+                         --query "[].{Title: title, PR: pullRequestId, Completion: completionQueueTime}" -o 'tsv') \
   | vd
 else
-  [[ $DEBUG == "1" ]] && echo -e "   $(tput setaf 0)az repos pr list --org \""https://dev.azure.com/${AZDO_ORGANIZATION}\"" -p \""${AZDO_PROJECT}\"" -r \""${AZDO_REPOSITORY}\"" --status \""${AZDO_STATUS}\"" --query \""[].{Title: title, PullRequestId: pullRequestId, Completion: completionQueueTime}\"" -o 'tsv'$(tput sgr0)\n"
-  #echo "Start       End         URL                                                                           Title"
-  #printf '%.0s-' $(seq $(tput cols))
-  awk -F'\t' -v url="$AZDO_URL" '{sub(/None/, "          ", $4); printf "%s\t%s\t\033[38;5;240m%s/%s\033[0m\t%s\n", substr($3, 0, 10), substr($4, 0, 10), url, $2, $1}' \
-    < <(az repos pr list --org "https://dev.azure.com/${AZDO_ORGANIZATION}" \
-                         -p "${AZDO_PROJECT}" \
-                         -r "${AZDO_REPOSITORY}" \
-                         --status "${AZDO_STATUS}" \
-                         --query "reverse(sort_by([], &creationDate))[*].{Title: title, PullRequestId: pullRequestId, Creation: creationDate, Completion: completionQueueTime}" -o 'tsv') \
+  [[ $DEBUG == "1" ]] && echo -e "   $(tput setaf 0)az repos pr list --org \""https://dev.azure.com/${AZDO_ORGANIZATION}\"" -p \""${AZDO_PROJECT}\"" -r \""${AZDO_REPOSITORY}\"" --status \""${AZDO_STATUS}\"" --top "${size}" --query \""[].{Title: title, PR: pullRequestId, Creation: creationDate, Completion: completionQueueTime, Branch: sourceRefName}\"" -o 'json'$(tput sgr0)\n"
+
+  tput rmam
+  az repos pr list --org "https://dev.azure.com/${AZDO_ORGANIZATION}" \
+     -p "${AZDO_PROJECT}" \
+     -r "${AZDO_REPOSITORY}" \
+     --status "${AZDO_STATUS}" \
+     --top "$size" \
+     --query "reverse(sort_by([], &creationDate))[*].{Title: title, PR: pullRequestId, Creation: creationDate, Completion: completionQueueTime, Branch: sourceRefName}" \
+     -o 'json' \
+     | jq --arg url "https://${AZDO_URL}/" \
+          -r 'def grey: "\u001b[90m";
+              def reset: "\u001b[0m";
+              def az_url(id): "\u001b]8;;\($url+(id|tostring))\u001b\\\(id)\u001b]8;;\u001b\\";
+              .[] |
+                "\(grey)\(.Creation[:10])\t\(.Completion[:10]//"")\(reset)\t\(az_url(.PR))\t\(.Branch|sub("refs/heads/";""))\t\(.Title)"
+             ' \
   | column -t -s $'\t'
+  tput smam
 fi
+
+## TODO
+##
+##   [ ] make "completed" default
+##
+##   [ ] if "completed", then sort by 'completionQueueTime'
+##
+##   [ ] if completed and '-m' option (for minimal), output only "completionQueueTime PR-Number JIRA-ID" to gain ordered list of tickets to cherry pick
+##
+##
