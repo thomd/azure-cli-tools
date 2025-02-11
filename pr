@@ -41,7 +41,7 @@ help_envs() {
 
 visidata=false
 size=100
-AZDO_STATUS="all"
+pr_status="all"
 AZDO_URL="dev.azure.com/${AZDO_ORGANIZATION}/${AZDO_PROJECT/ /%20}/_git/${AZDO_REPOSITORY}/pullrequest"
 
 while [ $# -gt 0 ]; do
@@ -57,33 +57,36 @@ while [ $# -gt 0 ]; do
       show_help
       ;;
     *)
-      AZDO_STATUS=$1
+      pr_status=$1
       ;;
   esac
   shift
 done
 
-echo -e >&2 "\n $(tput setaf 2)${AZDO_STATUS^}$(tput sgr0) Pull-Requests of Project $(tput setaf 2)$AZDO_PROJECT$(tput sgr0):\n"
+echo -e >&2 "\n $(tput setaf 0)[${size} PRs]$(tput sgr0) $(tput setaf 2)${pr_status^}$(tput sgr0) Pull-Requests of Project $(tput setaf 2)$AZDO_PROJECT$(tput sgr0):\n"
+
+[[ $pr_status == "completed" ]] && sort_by="completionQueueTime" || sort_by="creationDate"
 
 if [[ $visidata == true ]]; then
-  awk -F'\t' -v url="$AZDO_URL" 'BEGIN{printf "\"Title\",\"URL\",\"Completion Date\"\n"}{printf "\"%s\",\"%s/%s\",\"%s\"\n", $1, url, $2, substr($3, 0, 10)}' \
-    < <(az repos pr list --org "https://dev.azure.com/${AZDO_ORGANIZATION}" \
-                         -p "${AZDO_PROJECT}" \
-                         -r "${AZDO_REPOSITORY}" \
-                         --status "${AZDO_STATUS}" \
-                         --top "$size" \
-                         --query "[].{Title: title, PR: pullRequestId, Completion: completionQueueTime}" -o 'tsv') \
+  (echo "Creation Date,Completion Date,Pull Request ID,Branch,Title";
+   az repos pr list --org "https://dev.azure.com/${AZDO_ORGANIZATION}" \
+     -p "${AZDO_PROJECT}" \
+     -r "${AZDO_REPOSITORY}" \
+     --status "${pr_status}" \
+     --top "$size" \
+     --query "reverse(sort_by([], &${sort_by}))[*].{Title: title, PR: pullRequestId, Creation: creationDate, Completion: completionQueueTime, Branch: sourceRefName}" \
+     -o 'json' \
+     | jq -r '.[] | "\(.Creation[:10]),\(.Completion[:10]//""),\(.PR),\(.Branch|sub("refs/heads/";"")),\"\(.Title)\""' ) \
   | vd
 else
-  [[ $DEBUG == "1" ]] && echo -e "   $(tput setaf 0)az repos pr list --org \""https://dev.azure.com/${AZDO_ORGANIZATION}\"" -p \""${AZDO_PROJECT}\"" -r \""${AZDO_REPOSITORY}\"" --status \""${AZDO_STATUS}\"" --top "${size}" --query \""[].{Title: title, PR: pullRequestId, Creation: creationDate, Completion: completionQueueTime, Branch: sourceRefName}\"" -o 'json'$(tput sgr0)\n"
-
+  [[ $DEBUG == "1" ]] && echo -e "$(tput setaf 0)az repos pr list --org \"https://dev.azure.com/${AZDO_ORGANIZATION}\" -p \"${AZDO_PROJECT}\" -r \"${AZDO_REPOSITORY}\" --status \"${pr_status}\" --top ${size} --query \"reverse(sort_by([], &${sort_by}))[*].{Title: title, PR: pullRequestId, Creation: creationDate, Completion: completionQueueTime, Branch: sourceRefName}\" -o 'json'$(tput sgr0)\n"
   tput rmam
   az repos pr list --org "https://dev.azure.com/${AZDO_ORGANIZATION}" \
      -p "${AZDO_PROJECT}" \
      -r "${AZDO_REPOSITORY}" \
-     --status "${AZDO_STATUS}" \
+     --status "${pr_status}" \
      --top "$size" \
-     --query "reverse(sort_by([], &creationDate))[*].{Title: title, PR: pullRequestId, Creation: creationDate, Completion: completionQueueTime, Branch: sourceRefName}" \
+     --query "reverse(sort_by([], &${sort_by}))[*].{Title: title, PR: pullRequestId, Creation: creationDate, Completion: completionQueueTime, Branch: sourceRefName}" \
      -o 'json' \
      | jq --arg url "https://${AZDO_URL}/" \
           -r 'def grey: "\u001b[90m";
@@ -96,12 +99,3 @@ else
   tput smam
 fi
 
-## TODO
-##
-##   [ ] make "completed" default
-##
-##   [ ] if "completed", then sort by 'completionQueueTime'
-##
-##   [ ] if completed and '-m' option (for minimal), output only "completionQueueTime PR-Number JIRA-ID" to gain ordered list of tickets to cherry pick
-##
-##
