@@ -7,11 +7,13 @@
 #
 #     pr                                       # list completed pull requests
 #     pr TYPE                                  # list pull requests of TYPE: active, all, completed, abandoned [default: all]
-#     pr -v                                    # list pull requests and open in VisiData
-#     pr -s COUNT                              # set number of pull requests returned [default: 100]
+#     pr -n COUNT                              # set number of pull requests returned [default: 100]
+#     pr -s DIRECTION                          # set sort direction by date 'asc' | 'desc' [default: desc]
+#     pr --csv                                 # list pull requests as CSV
 #
 # EXAMPLES
 #
+#     pr --csv -s asc | vd
 #     pr | grep 1234
 #     pr | rg 1234
 #     pr completed | rg -f <(cat pattern-list.txt)
@@ -39,19 +41,24 @@ help_envs() {
 [ -z "$AZDO_REPOSITORY" ] && help_envs "AZDO_REPOSITORY"
 [ -z "$AZDO_REVIEWER" ] && help_envs "AZDO_REVIEWER"
 
-visidata=false
+csv=false
 size=100
 pr_status="all"
+sort_direction="desc"
 AZDO_URL="dev.azure.com/${AZDO_ORGANIZATION}/${AZDO_PROJECT/ /%20}/_git/${AZDO_REPOSITORY}/pullrequest"
 
 while [ $# -gt 0 ]; do
   case $1 in
-    -v)
-      visidata=true
+    --csv)
+      csv=true
+      ;;
+    -n)
+      shift
+      size=$1
       ;;
     -s)
       shift
-      size=$1
+      sort_direction=$1
       ;;
     -h|--help)
       show_help
@@ -63,22 +70,22 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-echo -e >&2 "\n $(tput setaf 0)[${size} PRs]$(tput sgr0) $(tput setaf 2)${pr_status^}$(tput sgr0) Pull-Requests of Project $(tput setaf 2)$AZDO_PROJECT$(tput sgr0):\n"
 
 [[ $pr_status == "completed" ]] && sort_by="completionQueueTime" || sort_by="creationDate"
+[[ $sort_direction == "desc" ]] && sort_dir="reverse" || sort_dir=""
 
-if [[ $visidata == true ]]; then
+if [[ $csv == true ]]; then
   (echo "Creation Date,Completion Date,Pull Request ID,Branch,Title";
    az repos pr list --org "https://dev.azure.com/${AZDO_ORGANIZATION}" \
      -p "${AZDO_PROJECT}" \
      -r "${AZDO_REPOSITORY}" \
      --status "${pr_status}" \
      --top "$size" \
-     --query "reverse(sort_by([], &${sort_by}))[*].{Title: title, PR: pullRequestId, Creation: creationDate, Completion: completionQueueTime, Branch: sourceRefName}" \
+     --query "${sort_dir}(sort_by([], &${sort_by}))[*].{Title: title, PR: pullRequestId, Creation: creationDate, Completion: completionQueueTime, Branch: sourceRefName}" \
      -o 'json' \
-     | jq -r '.[] | "\(.Creation[:10]),\(.Completion[:10]//""),\(.PR),\(.Branch|sub("refs/heads/";"")),\"\(.Title)\""' ) \
-  | vd
+     | jq -r '.[] | "\(.Creation[:10]),\(.Completion[:10]//""),\(.PR),\(.Branch|sub("refs/heads/";"")),\"\(.Title)\""' )
 else
+  echo -e >&2 "\n $(tput setaf 0)[${size} PRs]$(tput sgr0) $(tput setaf 2)${pr_status^}$(tput sgr0) Pull-Requests of Project $(tput setaf 2)$AZDO_PROJECT$(tput sgr0):\n"
   [[ $DEBUG == "1" ]] && echo -e "$(tput setaf 0)az repos pr list --org \"https://dev.azure.com/${AZDO_ORGANIZATION}\" -p \"${AZDO_PROJECT}\" -r \"${AZDO_REPOSITORY}\" --status \"${pr_status}\" --top ${size} --query \"reverse(sort_by([], &${sort_by}))[*].{Title: title, PR: pullRequestId, Creation: creationDate, Completion: completionQueueTime, Branch: sourceRefName}\" -o 'json'$(tput sgr0)\n"
   tput rmam
   az repos pr list --org "https://dev.azure.com/${AZDO_ORGANIZATION}" \
@@ -86,7 +93,7 @@ else
      -r "${AZDO_REPOSITORY}" \
      --status "${pr_status}" \
      --top "$size" \
-     --query "reverse(sort_by([], &${sort_by}))[*].{Title: title, PR: pullRequestId, Creation: creationDate, Completion: completionQueueTime, Branch: sourceRefName}" \
+     --query "${sort_dir}(sort_by([], &${sort_by}))[*].{Title: title, PR: pullRequestId, Creation: creationDate, Completion: completionQueueTime, Branch: sourceRefName}" \
      -o 'json' \
      | jq --arg url "https://${AZDO_URL}/" \
           -r 'def grey: "\u001b[90m";
