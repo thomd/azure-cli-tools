@@ -34,12 +34,14 @@ help_envs() {
   echo -e "    $(tput setaf 0)export AZDO_PROJECT=\"$(tput setaf 8)<project>$(tput setaf 0)\"$(tput sgr0)"
   echo -e "    $(tput setaf 0)export AZDO_REPOSITORY=\"$(tput setaf 8)<repository>$(tput setaf 0)\"$(tput sgr0)"
   echo -e "    $(tput setaf 0)export AZDO_REVIEWER=\"$(tput setaf 8)<your-email>$(tput setaf 0)\"$(tput sgr0)"
+  echo -e "    $(tput setaf 0)export JIRA_CLOUD_URL=\"$(tput setaf 8)<jira-cloud-url>$(tput setaf 0)\"$(tput sgr0)"
   exit 1
 }
 [ -z "$AZDO_ORGANIZATION" ] && help_envs "AZDO_ORGANIZATION"
 [ -z "$AZDO_PROJECT" ] && help_envs "AZDO_PROJECT"
 [ -z "$AZDO_REPOSITORY" ] && help_envs "AZDO_REPOSITORY"
 [ -z "$AZDO_REVIEWER" ] && help_envs "AZDO_REVIEWER"
+[ -z "$JIRA_CLOUD_URL" ] && help_envs "JIRA_CLOUD_URL"
 
 csv=false
 size=100
@@ -75,7 +77,7 @@ done
 [[ $sort_direction == "desc" ]] && sort_dir="reverse" || sort_dir=""
 
 if [[ $csv == true ]]; then
-  (echo "Creation Date,Completion Date,Pull Request ID,Branch,Title";
+  (echo "Creation Date,Completion Date,Pull Request ID,JIRA ID,Branch,Title";
    az repos pr list --org "https://dev.azure.com/${AZDO_ORGANIZATION}" \
      -p "${AZDO_PROJECT}" \
      -r "${AZDO_REPOSITORY}" \
@@ -83,7 +85,7 @@ if [[ $csv == true ]]; then
      --top "$size" \
      --query "${sort_dir}(sort_by([], &${sort_by}))[*].{Title: title, PR: pullRequestId, Creation: creationDate, Completion: completionQueueTime, Branch: sourceRefName}" \
      -o 'json' \
-     | jq -r '.[] | "\(.Creation[:10]),\(.Completion[:10]//""),\(.PR),\(.Branch|sub("refs/heads/";"")),\"\(.Title)\""' )
+     | jq -r '.[] | "\(.Creation[:10]),\(.Completion[:10]//""),\(.PR),\(.Branch|capture("(?<jira>[A-Z]+-[0-9]+)")|.jira),\(.Branch|sub("refs/heads/";"")),\"\(.Title)\""' )
 else
   echo -e >&2 "\n $(tput setaf 0)[${size} PRs]$(tput sgr0) $(tput setaf 2)${pr_status^}$(tput sgr0) Pull-Requests of Project $(tput setaf 2)$AZDO_PROJECT$(tput sgr0):\n"
   [[ $DEBUG == "1" ]] && echo -e "$(tput setaf 0)az repos pr list --org \"https://dev.azure.com/${AZDO_ORGANIZATION}\" -p \"${AZDO_PROJECT}\" -r \"${AZDO_REPOSITORY}\" --status \"${pr_status}\" --top ${size} --query \"reverse(sort_by([], &${sort_by}))[*].{Title: title, PR: pullRequestId, Creation: creationDate, Completion: completionQueueTime, Branch: sourceRefName}\" -o 'json'$(tput sgr0)\n"
@@ -95,12 +97,15 @@ else
      --top "$size" \
      --query "${sort_dir}(sort_by([], &${sort_by}))[*].{Title: title, PR: pullRequestId, Creation: creationDate, Completion: completionQueueTime, Branch: sourceRefName}" \
      -o 'json' \
-     | jq --arg url "https://${AZDO_URL}/" \
+     | jq \
+          --arg azurl "https://${AZDO_URL}/" \
+          --arg jiraurl "https://${JIRA_CLOUD_URL}/" \
           -r 'def grey: "\u001b[90m";
               def reset: "\u001b[0m";
-              def az_url(id): "\u001b]8;;\($url+(id|tostring))\u001b\\\(id)\u001b]8;;\u001b\\";
+              def az_url(id): "\u001b]8;;\($azurl+(id|tostring))\u001b\\\(id)\u001b]8;;\u001b\\";
+              def jira_url(id): "\u001b]8;;\($jiraurl+"browse/"+(id|tostring))\u001b\\\(id)\u001b]8;;\u001b\\";
               .[] |
-                "\(grey)\(.Creation[:10])\t\(.Completion[:10]//"")\(reset)\t\(az_url(.PR))\t\(.Branch|sub("refs/heads/";""))\t\(.Title)"
+                "\(grey)\(.Creation[:10])\t\(.Completion[:10]//"")\(reset)\t\(az_url(.PR))\t\(jira_url(.Branch|capture("(?<jira>[A-Z]+-[0-9]+)")|.jira))\t\(.Branch|sub("refs/heads/";""))\t\(.Title)"
              ' \
   | column -t -s $'\t'
   tput smam
