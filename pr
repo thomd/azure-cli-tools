@@ -14,8 +14,8 @@
 # EXAMPLES
 #
 #     pr --csv -s asc | vd
-#     pr | grep 1234
-#     pr | rg 1234
+#     pr | grep --color=never 1234
+#     pr | rg --color=never 1234
 #     pr completed | rg -f <(cat pattern-list.txt)
 #
 
