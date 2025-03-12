@@ -6,7 +6,7 @@ _pr_completions() {
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
-    COMPREPLY=($(compgen -W "-h --help -c --count -s --size --csv abandoned active all completed" -- ${cur}))
+    COMPREPLY=($(compgen -W "-h --help -c --count -s --size -f --filter --csv abandoned active all completed" -- ${cur}))
 }
 
 complete -F _pr_completions pr
