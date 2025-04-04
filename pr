@@ -46,7 +46,7 @@ help_envs() {
 [ -z "$JIRA_CLOUD_URL" ] && help_envs "JIRA_CLOUD_URL"
 
 csv=false
-size=100
+size=2000
 pr_status="all"
 sort_direction="desc"
 filter=""
