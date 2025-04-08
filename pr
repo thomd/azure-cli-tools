@@ -95,9 +95,9 @@ if [[ $csv == true ]]; then
      | jq -r '.[] | "\(.Creation[:10]),\(.Completion[:10]//""),\(.PR),\(.Branch|capture("(?<jira>[A-Z]+-[0-9]+)")|.jira),\(.Branch|sub("refs/heads/";"")),\"\(.Title)\""' )
 else
   if [[ $filter == "" ]]; then
-    echo -e >&2 "\n $(tput setaf 4)$AZDO_PROJECT$(tput sgr0) Project: $(tput setaf 2)${size}$(tput sgr0) Pull-Requests of Status '$(tput setaf 2)${pr_status}$(tput sgr0)'\n"
+    echo -e >&2 "\n Project $(tput setaf 4)$AZDO_PROJECT$(tput sgr0): $(tput setaf 2)${size}$(tput sgr0) last pull-requests of status '$(tput setaf 2)${pr_status}$(tput sgr0)'\n"
   else
-    echo -e >&2 "\n $(tput setaf 4)$AZDO_PROJECT$(tput sgr0) Project: Pull-Requests of Status '$(tput setaf 2)$pr_status$(tput sgr0)' containing '$(tput setaf 2)$filter_arg$(tput sgr0)'\n"
+    echo -e >&2 "\n Project $(tput setaf 4)$AZDO_PROJECT$(tput sgr0): pull-requests of status '$(tput setaf 2)$pr_status$(tput sgr0)' containing '$(tput setaf 2)$filter_arg$(tput sgr0)'\n"
   fi
   [[ $DEBUG == "1" ]] && echo -e "$(tput setaf 0)az repos pr list --org \"https://dev.azure.com/${AZDO_ORGANIZATION}\" -p \"${AZDO_PROJECT}\" -r \"${AZDO_REPOSITORY}\" --status \"${pr_status}\" --top ${size} --query \"reverse(sort_by([], &${sort_by}))[*].{Title: title, PR: pullRequestId, Creation: creationDate, Completion: completionQueueTime, Branch: sourceRefName}\" -o 'json'$(tput sgr0)\n"
   tput rmam
