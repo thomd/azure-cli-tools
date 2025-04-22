@@ -3,6 +3,10 @@
 #
 # List Pull-Requests of an Azure Project
 #
+# LOGIN
+#
+#     az devops login                            # login via personal access token (PAT)
+#
 # USAGE
 #
 #     pr                                         # list completed pull requests
@@ -24,7 +28,7 @@
 show_help() {
   awk '/^[^ #]/{c=1}c==0{print $0}' $0 | sed -n '/^#/p' | sed 1d | sed 's/^#/ /g' \
     | perl -pe "s/ #(.*)$/$(tput setaf 0)\1$(tput sgr 0)/" \
-    | perl -pe "s/(USAGE|EXAMPLES|COMMANDS)/$(tput setaf 0)\1$(tput sgr 0)/" \
+    | perl -pe "s/(LOGIN|USAGE|EXAMPLES|COMMANDS)/$(tput setaf 0)\1$(tput sgr 0)/" \
     | perl -pe "s/\`(.+)\`/$(tput sgr 0 1)\1$(tput sgr 0)/"
   exit 1
 }
