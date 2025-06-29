@@ -22,7 +22,7 @@
 #     pr -f 1234                                 # print only PRs with '1234' in title or branch name
 #     pr | grep --color=never 1234
 #     pr | rg --color=never 1234
-#     pr completed | rg -f <(cat list.txt)       # print all completed PRs referenced in 'list.txt'
+#     pr completed | rg -f list.txt              # print all completed PRs referenced in 'list.txt'
 #
 
 show_help() {
